@@ -25,6 +25,7 @@ Each principle is followed by what it forces in the design. When a feature reque
 3. **Verified facts and model claims never look alike.**
    - The harness generates facts (diffstat, commands run and exit codes, files touched, out-of-plan changes).
    - The model writes claims (summary, rationale, deviations, questions).
+   - The model may cite evidence but never supply it. Proof is referenced by block id, and the harness supplies the text.
 4. **Dense over prose.**
    - Few straight paragraphs, exposed by default.
    - Text is bulleted and packed with essential information.
@@ -102,6 +103,14 @@ Two visibly different blocks.
 
 Only the report has an enforced schema. Constraining all output hurts quality, so other output uses a prompted markdown subset (bullets, key-value lines, short tables) plus auto-collapse in the renderer.
 
+**Evidence**
+- A claim in the report can cite a stored output block by id, with an optional line range.
+- The harness fetches the stored text and renders it verbatim in the verified style. The model never pastes output into the report, because pasted text is a model claim again.
+- Cited excerpts follow the same condensation limits as any other block, expandable on demand.
+- The verified block still lists every command with its exit code, whatever is cited. Evidence adds to that list and never replaces it, so a passing run cannot stand in for a failing one.
+- A citation naming a missing block, or a range outside the output, is flagged instead of rendered.
+- Later: attach evidence to individual claims rather than the report as a whole. Mark state claims (tests pass, file changed) that have no evidence. Label evidence that predates the last edit to the files it concerns.
+
 Quick actions on a report: continue, ask a question, undo this turn.
 
 ## Git and safety
@@ -134,12 +143,16 @@ Quick actions on a report: continue, ask a question, undo this turn.
 3. TUI driven by replays only: block rendering, condensation, navigation, report styling. Decide alt-screen versus inline here.
 4. Headless engine: one provider, four tools, snapshots, tripwire. Connect the TUI and start using it on real work.
 5. Plan mode, plan artifact, build mode with plan-versus-actual.
-6. Harness-generated facts in the report.
+6. Harness-generated facts in the report, and evidence citations by block id.
 7. Sandbox interface and backends, vendored from existing projects.
+
+## Decisions
+
+- **Name:** snocode. The crate name is reserved on crates.io with a 0.0.1 placeholder release.
+- **License:** GPL-3.0-only. This is compatible with vendoring Apache-2.0 code, which GPLv2-only would not be. Relicensing later needs consent from every copyright holder, so settle contribution terms (for example, a note in `CONTRIBUTING`) before accepting outside contributions.
 
 ## Open questions
 
-- **License.** Permissive or GPL. GPLv3 can incorporate Apache-2.0 code. GPLv2-only cannot.
 - **Second mode name:** "build" or "work."
 - **Does build mode pause for approval of a self-written plan,** or proceed visibly and interruptibly?
 - **Alt-screen or inline.** Alt-screen allows re-collapsing past output. Inline preserves native scrollback. Current lean: alt-screen plus a transcript dump to stdout on exit.
@@ -155,4 +168,3 @@ Quick actions on a report: continue, ask a question, undo this turn.
 - **opencode:** compare how it splits plan and build permissions.
 - Any ported code keeps its original license header and notice. Ported files are listed in a `NOTICE` file, and changes are marked.
 - Before adding a feature, check the non-goals list. If it's there, that's the answer.
-
