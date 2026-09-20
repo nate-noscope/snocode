@@ -155,3 +155,4 @@ Quick actions on a report: continue, ask a question, undo this turn.
 - **opencode:** compare how it splits plan and build permissions.
 - Any ported code keeps its original license header and notice. Ported files are listed in a `NOTICE` file, and changes are marked.
 - Before adding a feature, check the non-goals list. If it's there, that's the answer.
+
