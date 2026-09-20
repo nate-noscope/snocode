@@ -46,7 +46,7 @@ Each principle is followed by what it forces in the design. When a feature reque
 
 ## Goals (v1)
 
-- Plan mode and build mode, with a persisted plan artifact passed between them.
+- Ask mode and work mode. A plan is a persisted artifact that can be produced in ask mode and consumed by work mode.
 - A block-based TUI: collapsed by default, expandable, navigable, with jump-to-report.
 - Harness-owned undo per turn, plus a tripwire for any change to HEAD or refs.
 - One or two providers behind a thin trait, with streaming and tool calling.
@@ -71,8 +71,8 @@ Anything here needs an explicit decision to move out of this list.
 ## Turn structure
 
 - **Intent:** the plan, short, visible before work starts.
-  - Plan mode produces it as a persisted artifact: steps, files affected, verification commands, explicit out-of-scope items.
-  - Build mode consumes it if it exists, otherwise writes a short one first.
+  - Ask mode can produce it on request as a persisted artifact: steps, files affected, verification commands, explicit out-of-scope items.
+  - Work mode consumes it if it exists, otherwise writes a short one first.
 - **Activity:** commands, outputs, and thinking, condensed by default.
   - Commands show as one line: command, exit code, duration.
   - Output shows below, capped, as head and tail with an elided-lines count.
@@ -81,17 +81,19 @@ Anything here needs an explicit decision to move out of this list.
 
 ## Modes
 
-Names are tentative (see open questions).
+Modes are permission bundles. The names describe emphasis, and the permissions and system prompt are the real definition. The status line shows the permission state (for example "ask · read-only"), since neither name says it outright.
 
-**Plan**
+**Ask**
 - Read-only tools. Shell limited to an allowlist, and later a sandbox.
-- Longer prose allowed, since it discusses architecture before any code exists.
+- For discussion: asking what the agent did, requesting revisions, exploring options, and discussing architecture before any code exists.
+- Longer prose allowed.
 - Models are discouraged from writing code. Where they do, it shows intent only. Fenced code is size-capped and collapsed in the UI, since this can't be enforced.
-- Output is the plan artifact.
+- A plan is an artifact the user can ask for here: steps, files affected, verification commands, explicit out-of-scope items. It is persisted. Ask mode does not force a plan on every turn.
 
-**Build**
+**Work**
 - Full tool set, more restricted behavior.
-- Follows the plan artifact exactly, or writes a short plan first.
+- Covers building, fixing, testing, refactoring, and removing.
+- Follows the plan artifact exactly if one exists, or writes a short plan first.
 - The report includes plan-versus-actual per step, so deviations are surfaced, not buried.
 
 ## Report
@@ -102,6 +104,8 @@ Two visibly different blocks.
 - **Model says:** summary, rationale, deviations, open questions, suggested commit message.
 
 Only the report has an enforced schema. Constraining all output hurts quality, so other output uses a prompted markdown subset (bullets, key-value lines, short tables) plus auto-collapse in the renderer.
+
+The model-authored part of the report has a configurable maximum length in characters, so it stays readable at a glance. Everything else is available on demand. **(proposed: the cap covers the model block only, since the verified block is generated and structured)**
 
 **Evidence**
 - A claim in the report can cite a stored output block by id, with an optional line range.
@@ -118,7 +122,7 @@ Quick actions on a report: continue, ask a question, undo this turn.
 - The agent gets no git-write tool.
 - Before each turn the harness records HEAD and refs. After, it compares. Any change is flagged loudly, with a one-key restore.
 - Undo snapshots are tree objects written from a temporary index, stored under a private ref namespace. HEAD, the index, and `git log` are untouched. Snapshotting the whole tree, not just files the edit tool touched, catches changes made through the shell.
-- The tripwire is the v1 answer and is not real enforcement. Real enforcement is an OS sandbox with `.git` read-only (also making plan mode's read-only guarantee real). It comes later behind a sandbox interface, with a tripwire-only default backend.
+- The tripwire is the v1 answer and is not real enforcement. Real enforcement is an OS sandbox with `.git` read-only (also making ask mode's read-only guarantee real). It comes later behind a sandbox interface, with a tripwire-only default backend.
 
 ## Platforms
 
@@ -139,10 +143,10 @@ Quick actions on a report: continue, ask a question, undo this turn.
 ## Milestones
 
 1. Scope doc, names, license, CI on Linux and macOS.
-2. Protocol crate and hand-written fixture event streams (plan turn, multi-command build turn, giant output, failing test, long thinking, report with a deviation).
-3. TUI driven by replays only: block rendering, condensation, navigation, report styling. Decide alt-screen versus inline here.
+2. Protocol crate and hand-written fixture event streams (ask turn that produces a plan, multi-command work turn, giant output, failing test, long thinking, report with a deviation).
+3. TUI driven by replays only, on alt-screen: block rendering, condensation, navigation, report styling, and the transcript dump.
 4. Headless engine: one provider, four tools, snapshots, tripwire. Connect the TUI and start using it on real work.
-5. Plan mode, plan artifact, build mode with plan-versus-actual.
+5. Ask mode, plan artifact, work mode with plan-versus-actual.
 6. Harness-generated facts in the report, and evidence citations by block id.
 7. Sandbox interface and backends, vendored from existing projects.
 
@@ -150,12 +154,21 @@ Quick actions on a report: continue, ask a question, undo this turn.
 
 - **Name:** snocode. The crate name is reserved on crates.io with a 0.0.1 placeholder release.
 - **License:** GPL-3.0-only. This is compatible with vendoring Apache-2.0 code, which GPLv2-only would not be. Relicensing later needs consent from every copyright holder, so settle contribution terms (for example, a note in `CONTRIBUTING`) before accepting outside contributions.
+- **Mode names:** ask (read-only) and work.
+  - "Work" over "build" because much of what the agent does is fixing, testing, refactoring, and removing, and because "build mode" reads as running `cargo build` in a Rust tool. "Code" and "write" were rejected for the same narrowness.
+  - "Ask" over "plan" and "talk" because the read-only mode is mostly used for asking what the agent did, requesting revisions, and getting suggestions, not formal planning. It is short, a verb like "work", and has a different initial for keybindings.
+  - Watch for a naming overlap: "ask a question" is also a quick action on a report, and the agent may ask the user for approval. Keep UI strings for those distinct from the mode name.
+  - A plan is an artifact, not a mode. Modes stay permission bundles, so ask mode never forces a plan on every question.
+- **Screen mode:** alt-screen first, inline deferred. Inline can be added later if scrollback and tmux habits are missed.
+  - The transcript dump to stdout on exit is built early. It renders blocks to plain lines with no screen, so it doubles as the basis for inline mode and is the simplest thing to snapshot-test.
+  - Block rendering is a pure function of the block, a width, an expanded flag, and a line limit. It returns styled lines and does not know where they are drawn.
+  - UI state (focus, scroll offset, which blocks are expanded) lives in the TUI layer, never in block data.
+  - Widgets do not assume they own the full screen.
+  - Before building each interaction, decide what it degrades to in inline mode, so inline does not end up a second-class afterthought.
 
 ## Open questions
 
-- **Second mode name:** "build" or "work."
-- **Does build mode pause for approval of a self-written plan,** or proceed visibly and interruptibly?
-- **Alt-screen or inline.** Alt-screen allows re-collapsing past output. Inline preserves native scrollback. Current lean: alt-screen plus a transcript dump to stdout on exit.
+- **Does work mode pause for approval of a self-written plan,** or proceed visibly and interruptibly?
 - **Checkpoint storage:** git refs or a separate store.
 - **Token counting:** exact per-model tokenizers or a cheap approximation for budgeting.
 - **First provider(s).**
