@@ -1,6 +1,11 @@
 [package]
 name = "snocode"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
+description = "An early-stage terminal coding agent currently under development."
+license = "GPL-3.0-only"
+repository = "https://github.com/nate-noscope/snocode"
+rust-version = "1.98"
+exclude = ["flake.nix", "flake.lock"]
 
 [dependencies]
