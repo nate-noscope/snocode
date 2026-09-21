@@ -5,3 +5,15 @@ version = 4
 [[package]]
 name = "snocode"
 version = "0.0.1"
+
+[[package]]
+name = "snocode-engine"
+version = "0.0.1"
+
+[[package]]
+name = "snocode-protocol"
+version = "0.0.1"
+
+[[package]]
+name = "snocode-tui"
+version = "0.0.1"

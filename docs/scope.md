@@ -182,6 +182,12 @@ Quick actions on a report: continue, ask a question, undo this turn.
 ## Decisions
 
 - **Name:** snocode. The crate name is reserved on crates.io with a 0.0.1 placeholder release.
+- **Workspace layout:** one repository, with the root staying the `snocode` package and `protocol`, `engine`, and `tui` as members under `crates/`. Chosen over a virtual workspace so the README and license ship with the published crate and the binary stays first-class.
+  - Sub-crates are separate packages with independent versions, not separate repositories. Their names are reserved on crates.io at 0.0.1 (`snocode-protocol`, `snocode-engine`, `snocode-tui`), with no `publish = false`.
+  - A published crate cannot depend on unpublished path crates, so the sub-crates must be published before `snocode` ships a release that uses them; otherwise distribution stays `cargo install --git` or prebuilt binaries. Real code ships as a bumped version.
+  - CI runs clippy and tests with `--workspace`, because a workspace with a root package operates on the root package alone by default.
+  - Sub-crates omit `readme`: crates.io resolves a sub-crate's relative README links against its own directory (`crates/<name>/`), so pointing them at the root README would break its `LICENSE` link.
+- **Publishing:** the published crate carries the root `README.md`, set explicitly as `readme = "README.md"` so a missing file fails the publish instead of silently dropping it. crates.io resolves relative README links when the `repository` host is GitHub, GitLab, or Bitbucket, rewriting them to `blob/HEAD/<path>` in the repo, so `[GPL (version 3.0 only)](LICENSE)` becomes `https://github.com/nate-noscope/snocode/blob/HEAD/LICENSE`. This depends on `repository` staying set and on one of those hosts. Published versions are immutable, and the 0.0.1 placeholder predates the README, so it renders none; the next publish must bump the version.
 - **License:** GPL-3.0-only. This is compatible with vendoring Apache-2.0 code, which GPLv2-only would not be. Relicensing later needs consent from every copyright holder, so settle contribution terms (for example, a note in `CONTRIBUTING`) before accepting outside contributions.
 - **Commits:** not part of the normal workflow, but allowed when asked. Implemented as a harness commit tool with approval, plus reporting of any commit that bypasses it through the shell. The harness knows exactly what was committed, and the user sees the message first.
 - **Modes are data, not built in.** Ask and work are defaults, and the engine never branches on a mode's name. Custom modes come from global config only, and are declarative. The trust boundary (verified block, evidence, snapshots, log, HEAD reporting) is not configurable.
@@ -200,7 +206,6 @@ Quick actions on a report: continue, ask a question, undo this turn.
 
 ## Open questions
 
-- **Workspace layout.** Lean: keep the root as the `snocode` package with member crates under `crates/`, so the README and license stay with the published crate. The alternative is a virtual workspace with the binary in a subdirectory. Mark sub-crates `publish = false` for now, decide later whether to publish them so `cargo install` works, and add `--workspace` to the CI clippy and test steps after the split.
 - **Protocol details, with leans:**
   - Output encoding. Lean: lossy text at capture, with ANSI escape codes handled in the renderer, so line counts ignore them.
   - Block ids. Lean: per-session sequential integers, which keep fixtures readable and citations short.
